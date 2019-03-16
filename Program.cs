@@ -5,9 +5,7 @@ using System.Numerics;
 using System.Text;
 using Microsoft.Data.DataView;
 using Microsoft.ML;
-using Microsoft.ML.Core.Data;
 using Microsoft.ML.Data;
-using Microsoft.ML.Internal.Calibration;
 using Microsoft.ML.Transforms;
 
 namespace TitanicML
@@ -32,14 +30,14 @@ namespace TitanicML
             var mlContext = new MLContext();
 
             // Setup the Training data by reading it from a CSV file and build up a IDataView based on the Passenger Model.
-            var trainingData = mlContext.Data.ReadFromTextFile<Passenger>(_trainingData, hasHeader: true, separatorChar: ',');
+            var trainingData = mlContext.Data.LoadFromTextFile<Passenger>(_trainingData, hasHeader: true, separatorChar: ',');
 
             // Do Transformation on the data, including dropping columns that doesn't have any value to the predictions.
             var dataPipeline = mlContext.Transforms
                 // Dropping Passenger Id's, Names, Ticket's, Fare's and Cabin.
                 .DropColumns(nameof(Passenger.PassengerId), nameof(Passenger.Name), nameof(Passenger.Ticket), nameof(Passenger.Fare), nameof(Passenger.Cabin))
                 // Replacing missing values on Age with a Mean Value based on Age.
-                .Append(mlContext.Transforms.ReplaceMissingValues(nameof(Passenger.Age), nameof(Passenger.Age), MissingValueReplacingTransformer.ColumnInfo.ReplacementMode.Mean))
+                .Append(mlContext.Transforms.ReplaceMissingValues(nameof(Passenger.Age), nameof(Passenger.Age), MissingValueReplacingEstimator.ColumnOptions.ReplacementMode.Mean))
                 // Converts Gender, Embark and Passenger Class from a Text Column to a one-hot encoded vector.
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding(nameof(Passenger.Gender), nameof(Passenger.Gender)))
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding(nameof(Passenger.Embarked), nameof(Passenger.Embarked)))
@@ -70,7 +68,7 @@ namespace TitanicML
     private static void EvaluateModel(MLContext mlContext, ITransformer dataPipeline)
     {
         // Once again, Open the training data into a IDataView
-        var trainingData = mlContext.Data.ReadFromTextFile<Passenger>(_trainingData, hasHeader: true, separatorChar: ',');
+        var trainingData = mlContext.Data.LoadFromTextFile<Passenger>(_trainingData, hasHeader: true, separatorChar: ',');
 
         // Run a BinaryClassification of the Fitted Training Data on the newly opened Training Data and output the Accuracy / F1 of the Classification.
         var statistics = mlContext.BinaryClassification.EvaluateNonCalibrated(dataPipeline.Transform(trainingData), nameof(OutputModel.Survived));
@@ -87,7 +85,7 @@ namespace TitanicML
         var predictor = dataPipeline.CreatePredictionEngine<PredictedData, OutputModel>(mlContext);
 
         // Open the Test Data and assign it to a IDataView based on Predicted Data Model.
-        var evalData = mlContext.Data.ReadFromTextFile<PredictedData>(_testData, hasHeader: true, separatorChar: ',');
+        var evalData = mlContext.Data.LoadFromTextFile<PredictedData>(_testData, hasHeader: true, separatorChar: ',');
 
         // Setup a string builder.
         var csvWriter = new StringBuilder();
@@ -120,7 +118,7 @@ namespace TitanicML
             var prediction = predictor.Predict(inputModel);
 
             // Write out the PassengerId and Survived as 1 (Survived) or 0 (Didn't Survive) to Console, Also not needed for submission to Kaggle.com
-            Console.WriteLine($"{inputModel.PassengerId}, {(prediction.Survived ? "1" : "0")}");
+            //Console.WriteLine($"{inputModel.PassengerId}, {(prediction.Survived ? "1" : "0")}");
 
             // Setup two variables and create a new line that ends with \n and append it to the stringbuilder.
             var pId = inputModel.PassengerId;
