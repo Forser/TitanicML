@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.Data.DataView;
 using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Trainers;
 using Microsoft.ML.Transforms;
 
 namespace TitanicML
@@ -38,6 +39,8 @@ namespace TitanicML
                 .DropColumns(nameof(Passenger.PassengerId), nameof(Passenger.Name), nameof(Passenger.Ticket), nameof(Passenger.Fare), nameof(Passenger.Cabin))
                 // Replacing missing values on Age with a Mean Value based on Age.
                 .Append(mlContext.Transforms.ReplaceMissingValues(nameof(Passenger.Age), nameof(Passenger.Age), MissingValueReplacingEstimator.ColumnOptions.ReplacementMode.Mean))
+                .Append(mlContext.Transforms.Text.FeaturizeText(nameof(Passenger.Gender)))
+                .Append(mlContext.Transforms.Text.FeaturizeText(nameof(Passenger.Embarked)))
                 // Converts Gender, Embark and Passenger Class from a Text Column to a one-hot encoded vector.
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding(nameof(Passenger.Gender), nameof(Passenger.Gender)))
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding(nameof(Passenger.Embarked), nameof(Passenger.Embarked)))
@@ -47,17 +50,17 @@ namespace TitanicML
                     nameof(Passenger.Age), nameof(Passenger.SiblingsOrSpouses),
                     nameof(Passenger.ParentsOrChildren), nameof(Passenger.Embarked)))
                 // Setup which trainer to use for training, Used FastTree but there are other options.
-                .Append(mlContext.BinaryClassification.Trainers.FastTree(nameof(Passenger.Survived)))
+                .Append(mlContext.BinaryClassification.Trainers.FastTree(nameof(Passenger.Survived)));
                 // Fit the Training Data.
-                .Fit(trainingData);
+                var trainingPipeline = dataPipeline.Fit(trainingData);
 
             // Time to do a Evaluation of the Training Data.
-            EvaluateModel(mlContext, dataPipeline);
+            EvaluateModel(mlContext, trainingPipeline);
 
             Console.WriteLine();
 
             // Time to do a Prediction on the Test Data.
-            PredictTestData(mlContext, dataPipeline);
+            PredictTestData(mlContext, trainingPipeline);
 
             Console.WriteLine();
 
@@ -118,7 +121,7 @@ namespace TitanicML
             var prediction = predictor.Predict(inputModel);
 
             // Write out the PassengerId and Survived as 1 (Survived) or 0 (Didn't Survive) to Console, Also not needed for submission to Kaggle.com
-            //Console.WriteLine($"{inputModel.PassengerId}, {(prediction.Survived ? "1" : "0")}");
+            Console.WriteLine($"{inputModel.PassengerId}, {(prediction.Survived ? "1" : "0")}");
 
             // Setup two variables and create a new line that ends with \n and append it to the stringbuilder.
             var pId = inputModel.PassengerId;
